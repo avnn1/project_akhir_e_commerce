@@ -68,6 +68,30 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
     );
   }
 
+  void _deleteProduct(String productId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Produk'),
+        content: const Text('Apakah Anda yakin ingin menghapus produk ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () async {
+              Navigator.pop(context);
+              await _sellerService.deleteProduct(productId);
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -166,20 +190,47 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
               final product = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+              product['id'] = snapshot.data!.docs[index].id;
+              
               return ListTile(
                 leading: SizedBox(
                   width: 50, height: 50,
-                  child: product['image_url'] != null
-                      ? Image.network(product['image_url'], fit: BoxFit.cover)
+                  child: (product['image_url'] != null && product['image_url'].toString().isNotEmpty)
+                      ? Image.network(
+                          product['image_url'], 
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.red),
+                          loadingBuilder: (context, child, loadingProgress) {
+                            if (loadingProgress == null) return child;
+                            return const CircularProgressIndicator();
+                          },
+                        )
                       : const Icon(Icons.image),
                 ),
                 title: Text(product['name'] ?? 'No Name'),
                 subtitle: Text('Rp ${product['price']} - Stok: ${product['stock']}'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit),
-                  onPressed: () {
-                    // TODO: Edit Product
-                  },
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.blue),
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => AddProductScreen(
+                              shopId: _shop!['id'],
+                              product: product,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _deleteProduct(product['id']),
+                    ),
+                  ],
                 ),
               );
             },

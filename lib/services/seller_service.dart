@@ -46,7 +46,7 @@ class SellerService {
         imageUrl = await uploadTask.ref.getDownloadURL();
       } catch (e) {
         debugPrint('Error uploading image: $e');
-        // Tetap lanjut meskipun gagal upload gambar
+        throw Exception('Gagal mengupload gambar. Pastikan Firebase Storage sudah aktif dan aturannya benar: $e');
       }
     }
 
@@ -57,6 +57,35 @@ class SellerService {
       'status': 'active',
       'created_at': FieldValue.serverTimestamp(),
     });
+  }
+
+  // Update produk
+  Future<void> updateProduct(String productId, Map<String, dynamic> productData, File? imageFile, String? currentImageUrl) async {
+    String? imageUrl = currentImageUrl;
+
+    // Jika ada gambar baru, upload ke Firebase Storage
+    if (imageFile != null) {
+      try {
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}_${imageFile.uri.pathSegments.last}';
+        final storageRef = _storage.ref().child('product_images/$fileName');
+        final uploadTask = await storageRef.putFile(imageFile);
+        imageUrl = await uploadTask.ref.getDownloadURL();
+      } catch (e) {
+        debugPrint('Error uploading image: $e');
+        throw Exception('Gagal mengupload gambar. Pastikan Firebase Storage sudah aktif dan aturannya benar: $e');
+      }
+    }
+
+    await _firestore.collection('products').doc(productId).update({
+      ...productData,
+      'image_url': imageUrl,
+      'updated_at': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Hapus produk
+  Future<void> deleteProduct(String productId) async {
+    await _firestore.collection('products').doc(productId).delete();
   }
 
   // Get stream of products for a shop
