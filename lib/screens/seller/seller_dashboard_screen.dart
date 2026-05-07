@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -106,7 +107,7 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
             IconButton(
               icon: const Icon(Icons.logout),
               onPressed: () => context.read<AuthService>().logout(),
-            )
+            ),
           ],
         ),
         body: Center(
@@ -135,7 +136,7 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () => context.read<AuthService>().logout(),
-          )
+          ),
         ],
       ),
       drawer: Drawer(
@@ -144,14 +145,20 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
           children: [
             const DrawerHeader(
               decoration: BoxDecoration(color: Colors.green),
-              child: Text('Menu Seller', style: TextStyle(color: Colors.white, fontSize: 24)),
+              child: Text(
+                'Menu Seller',
+                style: TextStyle(color: Colors.white, fontSize: 24),
+              ),
             ),
             ListTile(
               leading: const Icon(Icons.shopping_bag),
               title: const Text('Kelola Pesanan'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const SellerOrdersScreen()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SellerOrdersScreen()),
+                );
               },
             ),
             ListTile(
@@ -159,7 +166,12 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
               title: const Text('Saldo Penjualan'),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const SellerBalanceScreen()));
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SellerBalanceScreen(),
+                  ),
+                );
               },
             ),
           ],
@@ -183,32 +195,60 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('Belum ada produk. Tambahkan sekarang!'));
+            return const Center(
+              child: Text('Belum ada produk. Tambahkan sekarang!'),
+            );
           }
 
           return ListView.builder(
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
-              final product = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+              final product =
+                  snapshot.data!.docs[index].data() as Map<String, dynamic>;
               product['id'] = snapshot.data!.docs[index].id;
-              
+
               return ListTile(
                 leading: SizedBox(
-                  width: 50, height: 50,
-                  child: (product['image_url'] != null && product['image_url'].toString().isNotEmpty)
-                      ? Image.network(
-                          product['image_url'], 
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.red),
-                          loadingBuilder: (context, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return const CircularProgressIndicator();
-                          },
-                        )
+                  width: 50,
+                  height: 50,
+                  child:
+                      (product['image_url'] != null &&
+                          product['image_url'].toString().isNotEmpty)
+                      ? product['image_url'].toString().startsWith('data:image')
+                            ? Image.memory(
+                                base64Decode(
+                                  product['image_url']
+                                      .toString()
+                                      .split(',')
+                                      .last,
+                                ),
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(
+                                      Icons.broken_image,
+                                      color: Colors.red,
+                                    ),
+                              )
+                            : Image.network(
+                                product['image_url'],
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(
+                                      Icons.broken_image,
+                                      color: Colors.red,
+                                    ),
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return const CircularProgressIndicator();
+                                    },
+                              )
                       : const Icon(Icons.image),
                 ),
                 title: Text(product['name'] ?? 'No Name'),
-                subtitle: Text('Rp ${product['price']} - Stok: ${product['stock']}'),
+                subtitle: Text(
+                  'Rp ${product['price']} - Stok: ${product['stock']}',
+                ),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

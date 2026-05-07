@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
 import '../../services/buyer_service.dart';
 import 'cart_screen.dart';
+import 'checkout_screen.dart';
 import 'buyer_orders_screen.dart';
 
 class BuyerHomeScreen extends StatefulWidget {
@@ -92,8 +94,18 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
                       child: Container(
                         color: Colors.grey.shade200,
                         width: double.infinity,
-                        child: product['image_url'] != null
-                            ? Image.network(product['image_url'], fit: BoxFit.cover)
+                        child: (product['image_url'] != null && product['image_url'].toString().isNotEmpty)
+                            ? product['image_url'].toString().startsWith('data:image')
+                                ? Image.memory(
+                                    base64Decode(product['image_url'].toString().split(',').last),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 64, color: Colors.red),
+                                  )
+                                : Image.network(
+                                    product['image_url'], 
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 64, color: Colors.red),
+                                  )
                             : const Icon(Icons.image, size: 64, color: Colors.grey),
                       ),
                     ),
@@ -114,24 +126,74 @@ class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
                             style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 0),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green.shade600,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(vertical: 0),
+                                    textStyle: const TextStyle(fontSize: 12),
+                                  ),
+                                  onPressed: () async {
+                                    if (user != null) {
+                                      await _buyerService.addToCart(user.uid, product);
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Ditambahkan ke keranjang')),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  child: const Text('+ Keranjang'),
+                                ),
                               ),
-                              onPressed: () async {
-                                if (user != null) {
-                                  await _buyerService.addToCart(user.uid, product);
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Ditambahkan ke keranjang')),
-                                    );
-                                  }
-                                }
-                              },
-                              child: const Text('Beli'),
-                            ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 0),
+                                    textStyle: const TextStyle(fontSize: 12),
+                                  ),
+                                  onPressed: () async {
+                                    if (user != null) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Menyiapkan pembayaran...'), duration: Duration(seconds: 1)),
+                                      );
+                                      
+                                      // 1. Masukkan ke keranjang
+                                      await _buyerService.addToCart(user.uid, product);
+                                      
+                                      // 2. Ambil seluruh isi keranjang terbaru
+                                      final cartSnapshot = await _buyerService.getCartItems(user.uid).first;
+                                      final cartItems = cartSnapshot.docs;
+                                      
+                                      // 3. Hitung subtotal
+                                      int subtotal = 0;
+                                      for (var doc in cartItems) {
+                                        final data = doc.data() as Map<String, dynamic>;
+                                        subtotal += (data['price'] as int) * (data['qty'] as int);
+                                      }
+                                      
+                                      // 4. Langsung lompat ke Checkout
+                                      if (mounted) {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => CheckoutScreen(
+                                              cartItems: cartItems,
+                                              subtotal: subtotal,
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  },
+                                  child: const Text('Beli'),
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

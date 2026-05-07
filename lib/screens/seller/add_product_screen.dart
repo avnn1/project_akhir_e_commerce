@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -37,7 +38,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 50, // Kompres kualitas
+      maxWidth: 600, // Batasi resolusi agar base64 tidak terlalu besar
+    );
     if (pickedFile != null) {
       setState(() {
         _imageFile = File(pickedFile.path);
@@ -112,11 +117,17 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       : (isEdit && widget.product!['image_url'] != null && widget.product!['image_url'].toString().isNotEmpty)
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                widget.product!['image_url'], 
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 48, color: Colors.red),
-                              ),
+                              child: widget.product!['image_url'].toString().startsWith('data:image')
+                                  ? Image.memory(
+                                      base64Decode(widget.product!['image_url'].toString().split(',').last),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 48, color: Colors.red),
+                                    )
+                                  : Image.network(
+                                      widget.product!['image_url'], 
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 48, color: Colors.red),
+                                    ),
                             )
                           : const Column(
                               mainAxisAlignment: MainAxisAlignment.center,

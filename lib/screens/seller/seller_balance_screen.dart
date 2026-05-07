@@ -127,8 +127,55 @@ class _SellerBalanceScreenState extends State<SellerBalanceScreen> {
                   ],
                 ),
               ),
-              const Expanded(
-                child: Center(child: Text('Riwayat Transaksi akan muncul di sini')),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance
+                      .collection('withdrawals')
+                      .where('seller_id', isEqualTo: user.uid)
+                      .snapshots(),
+                  builder: (context, wdSnapshot) {
+                    if (wdSnapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (wdSnapshot.hasError) {
+                      return Center(child: Text('Error: ${wdSnapshot.error}'));
+                    }
+                    
+                    final docs = wdSnapshot.data?.docs ?? [];
+                    if (docs.isEmpty) {
+                      return const Center(child: Text('Belum ada riwayat penarikan'));
+                    }
+
+                    // Urutkan manual dari yang terbaru
+                    final sortedDocs = docs.toList();
+                    sortedDocs.sort((a, b) {
+                      final aTime = (a.data() as Map<String, dynamic>)['created_at'] as Timestamp?;
+                      final bTime = (b.data() as Map<String, dynamic>)['created_at'] as Timestamp?;
+                      if (aTime == null || bTime == null) return 0;
+                      return bTime.compareTo(aTime);
+                    });
+
+                    return ListView.builder(
+                      itemCount: sortedDocs.length,
+                      itemBuilder: (context, index) {
+                        final data = sortedDocs[index].data() as Map<String, dynamic>;
+                        final status = data['status'] ?? 'UNKNOWN';
+                        return ListTile(
+                          leading: const CircleAvatar(
+                            backgroundColor: Colors.redAccent,
+                            child: Icon(Icons.arrow_upward, color: Colors.white, size: 16),
+                          ),
+                          title: Text('Penarikan ke ${data['destination']}'),
+                          subtitle: Text('Status: $status'),
+                          trailing: Text(
+                            '- Rp ${data['amount']}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
               )
             ],
           );

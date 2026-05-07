@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -54,8 +55,18 @@ class _CartScreenState extends State<CartScreen> {
                     return ListTile(
                       leading: SizedBox(
                         width: 50, height: 50,
-                        child: data['image_url'] != null
-                            ? Image.network(data['image_url'], fit: BoxFit.cover)
+                        child: (data['image_url'] != null && data['image_url'].toString().isNotEmpty)
+                            ? data['image_url'].toString().startsWith('data:image')
+                                ? Image.memory(
+                                    base64Decode(data['image_url'].toString().split(',').last),
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.red),
+                                  )
+                                : Image.network(
+                                    data['image_url'], 
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, color: Colors.red),
+                                  )
                             : const Icon(Icons.image),
                       ),
                       title: Text(data['name']),

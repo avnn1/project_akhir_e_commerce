@@ -8,7 +8,7 @@ class OrderService {
     return _firestore
         .collection('orders')
         .where('buyer_id', isEqualTo: buyerId)
-        .orderBy('created_at', descending: true)
+        // .orderBy('created_at', descending: true) // Dihapus untuk menghindari error composite index
         .snapshots();
   }
 

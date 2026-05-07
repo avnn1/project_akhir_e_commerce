@@ -20,12 +20,24 @@ class BuyerOrdersScreen extends StatelessWidget {
         stream: orderService.getBuyerOrders(user.uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+          if (snapshot.hasError) return Center(child: Text('Terjadi kesalahan: ${snapshot.error}'));
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) return const Center(child: Text('Belum ada pesanan.'));
 
+          // Sorting manual dari yang terbaru
+          final docs = snapshot.data!.docs.toList();
+          docs.sort((a, b) {
+            final aData = a.data() as Map<String, dynamic>;
+            final bData = b.data() as Map<String, dynamic>;
+            final aTime = aData['created_at'] as Timestamp?;
+            final bTime = bData['created_at'] as Timestamp?;
+            if (aTime == null || bTime == null) return 0;
+            return bTime.compareTo(aTime); // descending
+          });
+
           return ListView.builder(
-            itemCount: snapshot.data!.docs.length,
+            itemCount: docs.length,
             itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
+              final doc = docs[index];
               final data = doc.data() as Map<String, dynamic>;
               final orderId = doc.id;
               final status = data['status'];
@@ -38,7 +50,28 @@ class BuyerOrdersScreen extends StatelessWidget {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Total: Rp ${data['total']}'),
+                      const SizedBox(height: 8),
+                      FutureBuilder<QuerySnapshot>(
+                        future: FirebaseFirestore.instance
+                            .collection('order_items')
+                            .where('order_id', isEqualTo: orderId)
+                            .get(),
+                        builder: (context, itemSnapshot) {
+                          if (!itemSnapshot.hasData) {
+                            return const Text('Memuat barang...', style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12));
+                          }
+                          final items = itemSnapshot.data!.docs;
+                          if (items.isEmpty) return const SizedBox();
+                          
+                          final itemNames = items.map((i) => '${i['qty']}x ${i['name']}').join('\n');
+                          return Text(
+                            itemNames,
+                            style: const TextStyle(color: Colors.black87),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      Text('Total: Rp ${data['total']}', style: const TextStyle(fontWeight: FontWeight.bold)),
                       Text('Status: $status', style: TextStyle(color: _getStatusColor(status), fontWeight: FontWeight.bold)),
                     ],
                   ),

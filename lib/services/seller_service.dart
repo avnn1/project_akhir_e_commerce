@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
@@ -5,7 +6,8 @@ import 'package:flutter/foundation.dart';
 
 class SellerService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
+  // ignore: unused_field
+  final FirebaseStorage _storage = FirebaseStorage.instance; // Tidak dipakai lagi untuk gambar produk
 
   // Cek apakah seller sudah punya toko
   Future<Map<String, dynamic>?> getShopBySellerId(String sellerId) async {
@@ -33,20 +35,19 @@ class SellerService {
     });
   }
 
-  // Tambah produk dengan gambar
+  // Tambah produk dengan gambar (diubah ke Base64 untuk simpan di Firestore)
   Future<void> addProduct(String shopId, Map<String, dynamic> productData, File? imageFile) async {
     String? imageUrl;
 
-    // Jika ada gambar, upload ke Firebase Storage dulu
+    // Jika ada gambar, ubah ke Base64 (Maksimal 1MB untuk Firestore)
     if (imageFile != null) {
       try {
-        final fileName = '${DateTime.now().millisecondsSinceEpoch}_${imageFile.uri.pathSegments.last}';
-        final storageRef = _storage.ref().child('product_images/$fileName');
-        final uploadTask = await storageRef.putFile(imageFile);
-        imageUrl = await uploadTask.ref.getDownloadURL();
+        final bytes = await imageFile.readAsBytes();
+        final base64String = base64Encode(bytes);
+        imageUrl = 'data:image/jpeg;base64,$base64String';
       } catch (e) {
-        debugPrint('Error uploading image: $e');
-        throw Exception('Gagal mengupload gambar. Pastikan Firebase Storage sudah aktif dan aturannya benar: $e');
+        debugPrint('Error converting image: $e');
+        throw Exception('Gagal memproses gambar: $e');
       }
     }
 
@@ -63,16 +64,15 @@ class SellerService {
   Future<void> updateProduct(String productId, Map<String, dynamic> productData, File? imageFile, String? currentImageUrl) async {
     String? imageUrl = currentImageUrl;
 
-    // Jika ada gambar baru, upload ke Firebase Storage
+    // Jika ada gambar baru, ubah ke Base64
     if (imageFile != null) {
       try {
-        final fileName = '${DateTime.now().millisecondsSinceEpoch}_${imageFile.uri.pathSegments.last}';
-        final storageRef = _storage.ref().child('product_images/$fileName');
-        final uploadTask = await storageRef.putFile(imageFile);
-        imageUrl = await uploadTask.ref.getDownloadURL();
+        final bytes = await imageFile.readAsBytes();
+        final base64String = base64Encode(bytes);
+        imageUrl = 'data:image/jpeg;base64,$base64String';
       } catch (e) {
-        debugPrint('Error uploading image: $e');
-        throw Exception('Gagal mengupload gambar. Pastikan Firebase Storage sudah aktif dan aturannya benar: $e');
+        debugPrint('Error converting image: $e');
+        throw Exception('Gagal memproses gambar: $e');
       }
     }
 
