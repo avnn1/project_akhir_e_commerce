@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../services/seeder_service.dart';
+import '../../main.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -15,6 +16,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  bool _obscurePassword = true;
 
   void _login() async {
     if (_formKey.currentState!.validate()) {
@@ -30,77 +32,162 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _showForgotPasswordDialog() {
+    final resetEmailController = TextEditingController(text: _emailController.text);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Lupa Sandi', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Masukkan email Anda untuk menerima link reset sandi dari Firebase.'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: resetEmailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final email = resetEmailController.text.trim();
+                if (email.isEmpty) return;
+                
+                Navigator.pop(context); // Tutup dialog
+                final authService = context.read<AuthService>();
+                final error = await authService.sendPasswordReset(email);
+                
+                if (mounted) {
+                  if (error == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Link reset sandi telah dikirim ke email Anda.'), backgroundColor: Colors.green),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Gagal mengirim: $error'), backgroundColor: Colors.red),
+                    );
+                  }
+                }
+              },
+              child: const Text('Kirim Link'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 28),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.shopping_bag, size: 80, color: Colors.green),
-                  const SizedBox(height: 24),
-                  Text(
-                    'Welcome Back',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                    textAlign: TextAlign.center,
+                  // Logo
+                  Icon(Icons.storefront_rounded, size: 64, color: MyApp.primaryColor),
+                  const SizedBox(height: 28),
+                  const Text(
+                    'Selamat Datang',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1A1A2E),
+                      letterSpacing: -0.5,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Login to continue shopping',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.grey,
-                        ),
-                    textAlign: TextAlign.center,
+                    'Masuk ke akun Anda untuk mulai berbelanja',
+                    style: TextStyle(fontSize: 15, color: Colors.grey.shade600, height: 1.4),
                   ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 40),
+
+                  // Email Field
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     decoration: const InputDecoration(
                       labelText: 'Email',
-                      prefixIcon: Icon(Icons.email),
+                      prefixIcon: Icon(Icons.email_outlined),
                     ),
-                    validator: (value) => value!.isEmpty ? 'Please enter email' : null,
+                    validator: (value) => value!.isEmpty ? 'Masukkan email' : null,
                   ),
                   const SizedBox(height: 16),
+
+                  // Password Field
                   TextFormField(
                     controller: _passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
+                    obscureText: _obscurePassword,
+                    decoration: InputDecoration(
                       labelText: 'Password',
-                      prefixIcon: Icon(Icons.lock),
+                      prefixIcon: const Icon(Icons.lock_outline_rounded),
+                      suffixIcon: IconButton(
+                        icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      ),
                     ),
-                    validator: (value) => value!.isEmpty ? 'Please enter password' : null,
+                    validator: (value) => value!.isEmpty ? 'Masukkan password' : null,
                   ),
-                  const SizedBox(height: 32),
-                  ElevatedButton(
-                    onPressed: context.watch<AuthService>().isLoading ? null : _login,
-                    child: context.watch<AuthService>().isLoading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Login'),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _showForgotPasswordDialog,
+                      child: const Text('Lupa Sandi?', style: TextStyle(fontWeight: FontWeight.w600)),
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                      );
-                    },
-                    child: const Text('Don\'t have an account? Register'),
+
+                  // Login Button
+                  SizedBox(
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: context.watch<AuthService>().isLoading ? null : _login,
+                      child: context.watch<AuthService>().isLoading
+                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                          : const Text('Masuk', style: TextStyle(fontSize: 16)),
+                    ),
                   ),
-                  const Divider(height: 48),
+                  const SizedBox(height: 20),
+
+                  // Register Link
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Belum punya akun? ', style: TextStyle(color: Colors.grey.shade600)),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const RegisterScreen()));
+                        },
+                        child: Text('Daftar', style: TextStyle(color: MyApp.primaryColor, fontWeight: FontWeight.w700)),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 48),
+                  Divider(color: Colors.grey.shade300),
+                  const SizedBox(height: 12),
                   TextButton.icon(
-                    icon: const Icon(Icons.auto_awesome, color: Colors.orange),
-                    label: const Text('Auto-Generate Dummy Data', style: TextStyle(color: Colors.orange)),
+                    icon: const Icon(Icons.auto_awesome, color: Colors.orange, size: 18),
+                    label: Text('Generate Data Dummy', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
                     onPressed: () async {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('Membuat data dummy... Mohon tunggu.')),

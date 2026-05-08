@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
-
+import '../../services/email_service.dart';
+import 'verify_otp_screen.dart';
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -16,20 +17,45 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   String _selectedRole = 'buyer';
 
+  bool _isSendingOtp = false;
+
   void _register() async {
     if (_formKey.currentState!.validate()) {
-      final authService = context.read<AuthService>();
-      final error = await authService.register(
-        _nameController.text.trim(),
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-        _selectedRole,
-      );
+      setState(() => _isSendingOtp = true);
+      
+      final email = _emailController.text.trim();
+      final name = _nameController.text.trim();
+      final password = _passwordController.text.trim();
+      final role = _selectedRole;
 
-      if (error != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
-      } else if (mounted) {
-        Navigator.pop(context); // Go back to login/home
+      // Generate OTP
+      final otp = EmailService.generateOTP();
+      
+      // Kirim OTP via Email
+      final success = await EmailService.sendOTPEmail(email, otp);
+      
+      if (mounted) {
+        setState(() => _isSendingOtp = false);
+        
+        if (success) {
+          // Pindah ke halaman verifikasi
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => VerifyOtpScreen(
+                name: name,
+                email: email,
+                password: password,
+                role: role,
+                actualOtp: otp,
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Gagal mengirim OTP ke email Anda. Pastikan email valid.')),
+          );
+        }
       }
     }
   }
@@ -105,8 +131,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                   const SizedBox(height: 32),
                   ElevatedButton(
-                    onPressed: context.watch<AuthService>().isLoading ? null : _register,
-                    child: context.watch<AuthService>().isLoading
+                    onPressed: _isSendingOtp || context.watch<AuthService>().isLoading ? null : _register,
+                    child: _isSendingOtp
                         ? const CircularProgressIndicator(color: Colors.white)
                         : const Text('Register'),
                   ),

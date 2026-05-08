@@ -6,7 +6,7 @@ import '../../services/seller_service.dart';
 
 class AddProductScreen extends StatefulWidget {
   final String shopId;
-  final Map<String, dynamic>? product; // Tambahkan ini untuk cek apakah edit atau tambah
+  final Map<String, dynamic>? product;
 
   const AddProductScreen({super.key, required this.shopId, this.product});
 
@@ -20,19 +20,29 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _descController = TextEditingController();
   final _priceController = TextEditingController();
   final _stockController = TextEditingController();
-  
+
   File? _imageFile;
   bool _isLoading = false;
+
+  static const List<String> _categories = [
+    'Elektronik',
+    'Fashion',
+    'Makanan & Minuman',
+    'Kesehatan',
+    'Olahraga',
+    'Lainnya',
+  ];
+  String _selectedCategory = 'Lainnya';
 
   @override
   void initState() {
     super.initState();
-    // Jika ada data product (mode edit), isi form dengan data tersebut
     if (widget.product != null) {
       _nameController.text = widget.product!['name'] ?? '';
       _descController.text = widget.product!['description'] ?? '';
       _priceController.text = widget.product!['price']?.toString() ?? '';
       _stockController.text = widget.product!['stock']?.toString() ?? '';
+      _selectedCategory = widget.product!['category'] ?? 'Lainnya';
     }
   }
 
@@ -40,13 +50,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
       source: ImageSource.gallery,
-      imageQuality: 50, // Kompres kualitas
-      maxWidth: 600, // Batasi resolusi agar base64 tidak terlalu besar
+      imageQuality: 50,
+      maxWidth: 600,
     );
     if (pickedFile != null) {
-      setState(() {
-        _imageFile = File(pickedFile.path);
-      });
+      setState(() => _imageFile = File(pickedFile.path));
     }
   }
 
@@ -59,27 +67,19 @@ class _AddProductScreenState extends State<AddProductScreen> {
           'description': _descController.text.trim(),
           'price': int.parse(_priceController.text.trim()),
           'stock': int.parse(_stockController.text.trim()),
+          'category': _selectedCategory,
         };
 
         if (widget.product == null) {
-          // Tambah Produk
           await SellerService().addProduct(widget.shopId, productData, _imageFile);
         } else {
-          // Edit Produk
-          await SellerService().updateProduct(
-            widget.product!['id'], 
-            productData, 
-            _imageFile, 
-            widget.product!['image_url']
-          );
+          await SellerService().updateProduct(widget.product!['id'], productData, _imageFile, widget.product!['image_url']);
         }
-        
+
         if (mounted) Navigator.pop(context);
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
-          );
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
         }
       } finally {
         if (mounted) setState(() => _isLoading = false);
@@ -90,96 +90,148 @@ class _AddProductScreenState extends State<AddProductScreen> {
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.product != null;
-    
+
     return Scaffold(
       appBar: AppBar(title: Text(isEdit ? 'Edit Produk' : 'Tambah Produk')),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Image Picker
               GestureDetector(
                 onTap: _pickImage,
                 child: Container(
-                  height: 150,
+                  height: 180,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade400),
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
                   ),
                   child: _imageFile != null
                       ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(_imageFile!, fit: BoxFit.cover),
+                          borderRadius: BorderRadius.circular(16),
+                          child: Image.file(_imageFile!, fit: BoxFit.cover, width: double.infinity),
                         )
                       : (isEdit && widget.product!['image_url'] != null && widget.product!['image_url'].toString().isNotEmpty)
                           ? ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
+                              borderRadius: BorderRadius.circular(16),
                               child: widget.product!['image_url'].toString().startsWith('data:image')
                                   ? Image.memory(
                                       base64Decode(widget.product!['image_url'].toString().split(',').last),
                                       fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 48, color: Colors.red),
+                                      width: double.infinity,
+                                      errorBuilder: (context, error, stackTrace) => Icon(Icons.broken_image_rounded, size: 48, color: Colors.grey.shade400),
                                     )
                                   : Image.network(
-                                      widget.product!['image_url'], 
+                                      widget.product!['image_url'],
                                       fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 48, color: Colors.red),
+                                      width: double.infinity,
+                                      errorBuilder: (context, error, stackTrace) => Icon(Icons.broken_image_rounded, size: 48, color: Colors.grey.shade400),
                                     ),
                             )
-                          : const Column(
+                          : Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.add_a_photo, size: 48, color: Colors.grey),
-                                SizedBox(height: 8),
-                                Text('Tambahkan Foto Produk', style: TextStyle(color: Colors.grey)),
+                                Icon(Icons.add_a_photo_rounded, size: 40, color: Colors.grey.shade400),
+                                const SizedBox(height: 8),
+                                Text('Tambahkan Foto Produk', style: TextStyle(color: Colors.grey.shade500, fontSize: 14)),
+                                const SizedBox(height: 4),
+                                Text('Ketuk untuk memilih foto', style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
                               ],
                             ),
                 ),
               ),
               const SizedBox(height: 24),
+
+              // Category
+              DropdownButtonFormField<String>(
+                initialValue: _selectedCategory,
+                decoration: const InputDecoration(
+                  labelText: 'Kategori',
+                  prefixIcon: Icon(Icons.category_rounded),
+                ),
+                items: _categories.map((cat) => DropdownMenuItem(value: cat, child: Text(cat))).toList(),
+                onChanged: (value) {
+                  if (value != null) setState(() => _selectedCategory = value);
+                },
+                validator: (val) => val == null ? 'Pilih kategori' : null,
+              ),
+              const SizedBox(height: 16),
+
+              // Name
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Nama Produk'),
+                decoration: const InputDecoration(
+                  labelText: 'Nama Produk',
+                  prefixIcon: Icon(Icons.shopping_bag_outlined),
+                ),
                 validator: (val) => val!.isEmpty ? 'Wajib diisi' : null,
               ),
               const SizedBox(height: 16),
+
+              // Description
               TextFormField(
                 controller: _descController,
-                decoration: const InputDecoration(labelText: 'Deskripsi'),
+                decoration: const InputDecoration(
+                  labelText: 'Deskripsi',
+                  prefixIcon: Icon(Icons.description_outlined),
+                  alignLabelWithHint: true,
+                ),
                 maxLines: 3,
                 validator: (val) => val!.isEmpty ? 'Wajib diisi' : null,
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _priceController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Harga (Rp)'),
-                validator: (val) {
-                  if (val!.isEmpty) return 'Wajib diisi';
-                  if (int.tryParse(val) == null) return 'Harus angka';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _stockController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Stok'),
-                validator: (val) {
-                  if (val!.isEmpty) return 'Wajib diisi';
-                  if (int.tryParse(val) == null) return 'Harus angka';
-                  return null;
-                },
+
+              // Price & Stock Row
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _priceController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Harga (Rp)',
+                        prefixIcon: Icon(Icons.payments_outlined),
+                      ),
+                      validator: (val) {
+                        if (val!.isEmpty) return 'Wajib diisi';
+                        if (int.tryParse(val) == null) return 'Harus angka';
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _stockController,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Stok',
+                        prefixIcon: Icon(Icons.inventory_2_outlined),
+                      ),
+                      validator: (val) {
+                        if (val!.isEmpty) return 'Wajib diisi';
+                        if (int.tryParse(val) == null) return 'Harus angka';
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _saveProduct,
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(isEdit ? 'Simpan Perubahan' : 'Simpan Produk'),
+
+              // Save Button
+              SizedBox(
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _saveProduct,
+                  child: _isLoading
+                      ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                      : Text(isEdit ? 'Simpan Perubahan' : 'Simpan Produk', style: const TextStyle(fontSize: 16)),
+                ),
               ),
             ],
           ),

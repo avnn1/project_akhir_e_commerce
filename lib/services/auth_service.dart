@@ -89,4 +89,23 @@ class AuthService extends ChangeNotifier {
   Future<void> logout() async {
     await _auth.signOut();
   }
+
+  Future<String?> sendPasswordReset(String email) async {
+    try {
+      _isLoading = true;
+      notifyListeners();
+      await _auth.sendPasswordResetEmail(email: email);
+      _isLoading = false;
+      notifyListeners();
+      return null; // Success
+    } on FirebaseAuthException catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return e.message;
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return e.toString();
+    }
+  }
 }

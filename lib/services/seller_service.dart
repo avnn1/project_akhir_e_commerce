@@ -25,12 +25,23 @@ class SellerService {
     return null;
   }
 
-  // Daftar toko
+  // Daftar toko (1 seller = 1 toko)
   Future<void> createShop(String sellerId, String shopName) async {
+    // Cek apakah seller sudah punya toko
+    final existing = await _firestore
+        .collection('shops')
+        .where('seller_id', isEqualTo: sellerId)
+        .limit(1)
+        .get();
+
+    if (existing.docs.isNotEmpty) {
+      throw Exception('Anda sudah memiliki toko. Setiap akun hanya boleh memiliki 1 toko.');
+    }
+
     await _firestore.collection('shops').add({
       'seller_id': sellerId,
       'name': shopName,
-      'status': 'active', // default active for MVP
+      'status': 'active',
       'created_at': FieldValue.serverTimestamp(),
     });
   }

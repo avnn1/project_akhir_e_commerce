@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../services/auth_service.dart';
 import '../../services/seller_service.dart';
+import '../../main.dart';
 import 'add_product_screen.dart';
 import 'seller_orders_screen.dart';
 import 'seller_balance_screen.dart';
@@ -42,10 +43,21 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Buka Toko Baru'),
-        content: TextField(
-          controller: nameController,
-          decoration: const InputDecoration(labelText: 'Nama Toko'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Buka Toko Baru', style: TextStyle(fontWeight: FontWeight.w700)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Masukkan nama toko Anda', style: TextStyle(color: Colors.grey.shade600, fontSize: 14)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: 'Nama Toko',
+                prefixIcon: Icon(Icons.store_rounded),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -56,10 +68,21 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
             onPressed: () async {
               if (nameController.text.isNotEmpty) {
                 final user = context.read<AuthService>().currentUser;
-                await _sellerService.createShop(user!.uid, nameController.text);
-                if (!mounted) return;
-                Navigator.pop(context);
-                _loadShop(); // Reload
+                try {
+                  await _sellerService.createShop(user!.uid, nameController.text);
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                  _loadShop();
+                } catch (e) {
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(e.toString().replaceFirst('Exception: ', '')),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             },
             child: const Text('Simpan'),
@@ -73,7 +96,8 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Hapus Produk'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Hapus Produk', style: TextStyle(fontWeight: FontWeight.w700)),
         content: const Text('Apakah Anda yakin ingin menghapus produk ini?'),
         actions: [
           TextButton(
@@ -81,12 +105,12 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
             child: const Text('Batal'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade600),
             onPressed: () async {
               Navigator.pop(context);
               await _sellerService.deleteProduct(productId);
             },
-            child: const Text('Hapus', style: TextStyle(color: Colors.white)),
+            child: const Text('Hapus'),
           ),
         ],
       ),
@@ -95,34 +119,55 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final user = context.watch<AuthService>().currentUser;
+
     if (_isLoading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(body: Center(child: CircularProgressIndicator(color: MyApp.primaryColor)));
     }
 
     if (_shop == null) {
       return Scaffold(
+        backgroundColor: Colors.white,
         appBar: AppBar(
           title: const Text('Seller Dashboard'),
           actions: [
-            IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: () => context.read<AuthService>().logout(),
-            ),
+            IconButton(icon: const Icon(Icons.logout_rounded), onPressed: () => context.read<AuthService>().logout()),
           ],
         ),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.store, size: 64, color: Colors.grey),
-              const SizedBox(height: 16),
-              const Text('Anda belum memiliki toko.'),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _createShop,
-                child: const Text('Buka Toko Sekarang'),
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 100, height: 100,
+                  decoration: BoxDecoration(
+                    color: MyApp.primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Icon(Icons.store_rounded, size: 48, color: MyApp.primaryColor),
+                ),
+                const SizedBox(height: 24),
+                const Text('Mulai Berjualan!', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Text(
+                  'Buka toko Anda dan mulai jual produk ke ribuan pembeli.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 14, height: 1.5),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.add_business_rounded),
+                    label: const Text('Buka Toko Sekarang', style: TextStyle(fontSize: 16)),
+                    onPressed: _createShop,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -131,146 +176,191 @@ class _SellerDashboardScreenState extends State<SellerDashboardScreen> {
     // Tampilan Toko Aktif
     return Scaffold(
       appBar: AppBar(
-        title: Text(_shop!['name']),
+        title: Row(
+          children: [
+            Container(
+              width: 32, height: 32,
+              decoration: BoxDecoration(
+                color: MyApp.primaryColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.store_rounded, size: 18, color: MyApp.primaryColor),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(_shop!['name'], overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => context.read<AuthService>().logout(),
-          ),
+          IconButton(icon: const Icon(Icons.logout_rounded, size: 22), onPressed: () => context.read<AuthService>().logout()),
         ],
       ),
       drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+        child: Column(
           children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.green),
-              child: Text(
-                'Menu Seller',
-                style: TextStyle(color: Colors.white, fontSize: 24),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(24, 60, 24, 24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [MyApp.primaryColor, MyApp.primaryDark],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 56, height: 56,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Icon(Icons.store_rounded, color: Colors.white, size: 32),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _shop!['name'] ?? 'Toko Saya',
+                    style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    user?.email ?? '',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 13),
+                  ),
+                ],
               ),
             ),
+            const SizedBox(height: 8),
             ListTile(
-              leading: const Icon(Icons.shopping_bag),
-              title: const Text('Kelola Pesanan'),
+              leading: Icon(Icons.shopping_bag_rounded, color: MyApp.primaryColor),
+              title: const Text('Kelola Pesanan', style: TextStyle(fontWeight: FontWeight.w500)),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const SellerOrdersScreen()),
-                );
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const SellerOrdersScreen()));
               },
             ),
             ListTile(
-              leading: const Icon(Icons.account_balance_wallet),
-              title: const Text('Saldo Penjualan'),
+              leading: Icon(Icons.account_balance_wallet_rounded, color: MyApp.primaryColor),
+              title: const Text('Saldo Penjualan', style: TextStyle(fontWeight: FontWeight.w500)),
               onTap: () {
                 Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SellerBalanceScreen(),
-                  ),
-                );
+                Navigator.push(context, MaterialPageRoute(builder: (_) => const SellerBalanceScreen()));
               },
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => AddProductScreen(shopId: _shop!['id']),
-            ),
-          );
+          Navigator.push(context, MaterialPageRoute(builder: (_) => AddProductScreen(shopId: _shop!['id'])));
         },
-        child: const Icon(Icons.add),
+        backgroundColor: MyApp.primaryColor,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('Tambah Produk', style: TextStyle(fontWeight: FontWeight.w600)),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _sellerService.getShopProducts(_shop!['id']),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: CircularProgressIndicator(color: MyApp.primaryColor));
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text('Belum ada produk. Tambahkan sekarang!'),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.inventory_2_outlined, size: 64, color: Colors.grey.shade300),
+                  const SizedBox(height: 16),
+                  Text('Belum ada produk', style: TextStyle(color: Colors.grey.shade500, fontSize: 16)),
+                  const SizedBox(height: 4),
+                  Text('Tekan tombol di bawah untuk menambahkan', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                ],
+              ),
             );
           }
 
-          return ListView.builder(
+          return ListView.separated(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
-              final product =
-                  snapshot.data!.docs[index].data() as Map<String, dynamic>;
+              final product = snapshot.data!.docs[index].data() as Map<String, dynamic>;
               product['id'] = snapshot.data!.docs[index].id;
 
-              return ListTile(
-                leading: SizedBox(
-                  width: 50,
-                  height: 50,
-                  child:
-                      (product['image_url'] != null &&
-                          product['image_url'].toString().isNotEmpty)
-                      ? product['image_url'].toString().startsWith('data:image')
-                            ? Image.memory(
-                                base64Decode(
-                                  product['image_url']
-                                      .toString()
-                                      .split(',')
-                                      .last,
-                                ),
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Icon(
-                                      Icons.broken_image,
-                                      color: Colors.red,
-                                    ),
-                              )
-                            : Image.network(
-                                product['image_url'],
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    const Icon(
-                                      Icons.broken_image,
-                                      color: Colors.red,
-                                    ),
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return const CircularProgressIndicator();
-                                    },
-                              )
-                      : const Icon(Icons.image),
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
-                title: Text(product['name'] ?? 'No Name'),
-                subtitle: Text(
-                  'Rp ${product['price']} - Stok: ${product['stock']}',
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.edit, color: Colors.blue),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => AddProductScreen(
-                              shopId: _shop!['id'],
-                              product: product,
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: SizedBox(
+                      width: 56, height: 56,
+                      child: (product['image_url'] != null && product['image_url'].toString().isNotEmpty)
+                          ? product['image_url'].toString().startsWith('data:image')
+                              ? Image.memory(
+                                  base64Decode(product['image_url'].toString().split(',').last),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image_rounded, color: Colors.red),
+                                )
+                              : Image.network(
+                                  product['image_url'],
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image_rounded, color: Colors.red),
+                                )
+                          : Container(
+                              color: Colors.grey.shade100,
+                              child: Icon(Icons.image_outlined, color: Colors.grey.shade400),
                             ),
+                    ),
+                  ),
+                  title: Text(product['name'] ?? 'No Name', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text(
+                        'Rp ${product['price']} • Stok: ${product['stock']}',
+                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                      ),
+                      if (product['category'] != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: MyApp.primaryColor.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(product['category'], style: TextStyle(fontSize: 11, color: MyApp.primaryColor, fontWeight: FontWeight.w500)),
                           ),
-                        );
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _deleteProduct(product['id']),
-                    ),
-                  ],
+                        ),
+                    ],
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: Icon(Icons.edit_rounded, color: MyApp.primaryColor, size: 20),
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => AddProductScreen(shopId: _shop!['id'], product: product),
+                          ));
+                        },
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.delete_outline_rounded, color: Colors.red.shade400, size: 20),
+                        onPressed: () => _deleteProduct(product['id']),
+                      ),
+                    ],
+                  ),
                 ),
               );
             },

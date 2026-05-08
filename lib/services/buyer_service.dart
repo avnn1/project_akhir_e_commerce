@@ -37,6 +37,23 @@ class BuyerService {
     }
   }
 
+  // Mendapatkan semua toko aktif
+  Stream<QuerySnapshot> getAllShops() {
+    return _firestore
+        .collection('shops')
+        .where('status', isEqualTo: 'active')
+        .snapshots();
+  }
+
+  // Mendapatkan produk berdasarkan shop_id
+  Stream<QuerySnapshot> getProductsByShopId(String shopId) {
+    return _firestore
+        .collection('products')
+        .where('shop_id', isEqualTo: shopId)
+        .where('status', isEqualTo: 'active')
+        .snapshots();
+  }
+
   // Mendapatkan isi keranjang
   Stream<QuerySnapshot> getCartItems(String userId) {
     return _firestore
